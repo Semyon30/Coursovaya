@@ -1,0 +1,228 @@
+import tkinter as tk
+from tkinter import messagebox
+import random
+
+size_entry = None  # Переменная для хранения поля ввода размера поля
+board_state = []  # Матрица состояния игрового поля
+black_turn = True  # Флаг для чередования хода игрока и компьютера
+authenticated = False  # Флаг аутентификации пользователя
+
+def start_game():
+    global size_entry, board_state, black_turn
+
+    def check_horizontal_win(board, size, player):
+        # Функция проверки победы по горизонтали
+        for row in range(size):
+            count = 0
+            for col in range(size):
+                if board[row][col] == player:
+                    count += 1
+                    if count == 5:
+                        return True
+                else:
+                    count = 0
+        return False
+
+    def check_vertical_win(board, size, player):
+        # Функция проверки победы по вертикали
+        for col in range(size):
+            count = 0
+            for row in range(size):
+                if board[row][col] == player:
+                    count += 1
+                    if count == 5:
+                        return True
+                else:
+                    count = 0
+        return False
+
+    def check_diagonal_win(board, size, player):
+        # Функция проверки победы по диагонали
+        for i in range(size - 4):
+            for j in range(size - 4):
+                count = 0
+                for k in range(5):
+                    if board[i + k][j + k] == player:
+                        count += 1
+                        if count == 5:
+                            return True
+                    else:
+                        count = 0
+        for i in range(4, size):
+            for j in range(size - 4):
+                count = 0
+                for k in range(5):
+                    if board[i - k][j + k] == player:
+                        count += 1
+                        if count == 5:
+                            return True
+                    else:
+                        count = 0
+        return False
+
+    def clear_board():
+        # Функция для очистки доски
+        canvas.delete("pieces")
+        global board_state, black_turn
+        board_state = [[0 for _ in range(size)] for _ in range(size)]
+        black_turn = True  # Сброс флага хода на черного после очистки поля
+
+    def make_computer_move():
+        # Функция для хода компьютера
+        global black_turn
+        inner_cells = [(i, j) for i in range(1, len(board_state) - 1) for j in range(1, len(board_state[i]) - 1)]
+        available_cells = [(i, j) for (i, j) in inner_cells if board_state[i][j] == 0]
+        if available_cells:
+            computer_move = random.choice(available_cells)
+            row, col = computer_move
+            piece_size = cell_size // 2
+            piece_x = col * cell_size - piece_size // 2
+            piece_y = row * cell_size - piece_size // 2
+
+            canvas.create_oval(piece_x, piece_y, piece_x + piece_size, piece_y + piece_size,
+                               outline='black', fill='white', tags="pieces")
+            board_state[row][col] = 2
+            if (check_horizontal_win(board_state, size, 2) or
+                    check_vertical_win(board_state, size, 2) or
+                    check_diagonal_win(board_state, size, 2)):
+                messagebox.showinfo("Победа!", "Победа достается Белым фишкам!")
+                clear_board()
+            black_turn = True
+
+    def place_piece(event, turn):
+        # Функция для размещения фишки при клике игрока
+        x = event.x
+        y = event.y
+        cell_x = x // cell_size
+        cell_y = y // cell_size
+        if cell_y >= size or cell_x >= size:
+            return
+        if x % cell_size < cell_size // 2 and y % cell_size < cell_size // 2:
+            if 1 <= cell_y < size and 1 <= cell_x < size:
+                if board_state[cell_y][cell_x] == 0 and turn:
+                    piece_size = cell_size // 2
+                    piece_x = cell_x * cell_size - piece_size // 2
+                    piece_y = cell_y * cell_size - piece_size // 2
+
+                    canvas.create_oval(piece_x, piece_y, piece_x + piece_size, piece_y + piece_size,
+                                       outline='black', fill='black', tags="pieces")
+                    board_state[cell_y][cell_x] = 1
+
+                    if (check_horizontal_win(board_state, size, 1) or
+                            check_vertical_win(board_state, size, 1) or
+                            check_diagonal_win(board_state, size, 1)):
+                        messagebox.showinfo("Победа!", "Победа достается Черным фишкам!")
+                        clear_board()
+
+                    make_computer_move()
+
+    try:
+        size = int(size_entry.get())
+
+        if size <= 5:
+            messagebox.showerror("Ошибка", "Размер поля должен быть больше 5")
+            return
+        game_window = tk.Tk()
+        game_window.title("Игровое поле")
+        game_window.configure(bg='#8B4513')
+        screen_width = game_window.winfo_screenwidth()
+        screen_height = game_window.winfo_screenheight()
+        board_size = min(screen_width, screen_height) - 100
+        game_window.geometry(f"{board_size}x{board_size}")
+        canvas = tk.Canvas(game_window, width=board_size, height=board_size, highlightthickness=0, bg='#8B4513')
+        canvas.pack()
+        cell_size = board_size // size
+        global board_state
+        board_state = [[0 for _ in range(size)] for _ in range(size)]
+        for row in range(size):
+            for col in range(size):
+                x1 = col * cell_size
+                y1 = row * cell_size
+                x2 = x1 + cell_size
+                y2 = y1 + cell_size
+                canvas.create_rectangle(x1, y1, x2, y2, outline='black')
+        canvas.bind("<Button-1>", lambda event: place_piece(event, black_turn))
+        tk.Button(game_window, text="Очистить поле", command=clear_board).pack()
+    except ValueError:
+        messagebox.showerror("Ошибка", "Введите корректное числовое значение")
+
+def open_login_window():
+    global authenticated
+
+    def login():
+        global authenticated
+        username = username_entry.get()
+        password = password_entry.get()
+        if not authenticated:
+            messagebox.showinfo("Внимание", "Сначала выполните регистрацию")
+            return
+        with open('users.txt', 'r') as file:
+            for line in file:
+                data = line.strip().split()
+                if len(data) == 2:
+                    user, pw = data
+                    if user == username and pw == password:
+                        messagebox.showinfo("Успешно", "Вход выполнен")
+                        authenticated = True
+                        login_window.destroy()
+                        open_game_settings_window()
+                        return
+        messagebox.showerror("Ошибка", "Неправильное имя пользователя или пароль")
+
+    def register_from_file():
+        global authenticated
+        username = username_entry.get().strip()
+        password = password_entry.get().strip()
+        
+        if not username or not password:
+            messagebox.showerror("Ошибка", "Пожалуйста, заполните оба поля")
+            return
+
+        with open('users.txt', 'r') as file:
+            for line in file:
+                data = line.strip().split()
+                if len(data) == 2:
+                    user, pw = data
+                    if user == username and pw == password:
+                        messagebox.showinfo("Успешно", "Регистрация завершена")
+                        authenticated = True  # Установка флага аутентификации в True после успешной регистрации
+                        login_window.destroy()
+                        return
+        messagebox.showerror("Ошибка", "Данные не верны")
+
+    login_window = tk.Toplevel(window)
+    login_window.title("Вход")
+    login_window.geometry("300x200")
+    login_window.configure(bg='#E9967A')
+    username_label = tk.Label(login_window, text="Имя пользователя:", bg='#E9967A')
+    username_label.pack()
+    username_entry = tk.Entry(login_window)
+    username_entry.pack()
+    password_label = tk.Label(login_window, text="Пароль:", bg='#E9967A')
+    password_label.pack()
+    password_entry = tk.Entry(login_window, show="*")
+    password_entry.pack()
+    login_button = tk.Button(login_window, text="Войти", command=login, bg="lightgreen", font=("Verdana", 10))
+    login_button.pack()
+    register_button = tk.Button(login_window, text="Регистрация", command=register_from_file, bg="lightblue", font=("Verdana", 10))
+    register_button.pack()
+
+def open_game_settings_window():
+    global size_entry
+    game_settings_window = tk.Tk()
+    game_settings_window.title("Настройки игры")
+    game_settings_window.configure(bg='#E9967A')
+    tk.Label(game_settings_window, text="Введите размер поля:", bg='#E9967A').pack()
+    size_entry = tk.Entry(game_settings_window)
+    size_entry.pack()
+    tk.Button(game_settings_window, text="Начать игру", command=start_game, bg="lightyellow", font=("Verdana", 10)).pack()
+
+window = tk.Tk()
+window.title("Gomoku")
+window.geometry('900x800')
+window.configure(bg='#E9967A')
+frame = tk.Frame(window, bg='#E9967A')
+frame.pack(expand=True)
+login_button = tk.Button(frame, text="Играть", command=open_login_window, bg="lightgreen", font=("Verdana", 16))
+login_button.pack(expand=True)
+window.mainloop()
